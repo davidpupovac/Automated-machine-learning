@@ -631,33 +631,6 @@ subset_analysis = function(training_data,testing_data)
 
 subset_analysis(training_data,testing_data)
 
-
-
-
-# ------------------------------
-# ------------------------------
-error_add<-rbind(error,error_add)
-error_subset_add<-rbind(error_subset, error_subset_add)
-
-
-save(error_add, file = "error_add_a.RData")
-save(error_subset_add, file = "error_subset_add_a.RData")
-
-
-Agg1 <- aggregate(error_subset_add,by=data.frame(error_subset_add[,1]), mean)
-
-Agg2 <- aggregate(error_add,by=data.frame(error_add[,1]), mean)
-
-Agg1[,-2]
-Agg2[,-2]
-
-# ------------------------------
-# ------------------------------
-
-
-
-
-
 # ------------------------------
 # ------------------------------
 #      final model
