@@ -1,5 +1,7 @@
 
 # ===============================================
+# Load packages and data 
+
 doInstall <- TRUE  
 toInstall <- c("XLConnect", "gridExtra", "FactoMineR", "irr", "glmnet",
                "randomForest", "caret", "plyr")
@@ -7,13 +9,14 @@ if(doInstall){install.packages(toInstall, repos = "http://cran.r-project.org")}
 
 # =====
 
-if(!file.exists("C:/Users/Korisnik.Korisnik-PC/Desktop/Machine learning code")) dir.create("C:/Users/Korisnik.Korisnik-PC/Desktop/Machine learning code") 
-setwd("C:/Users/Korisnik.Korisnik-PC/Desktop/Machine learning code")
+if(!file.exists("C:/Desktop/Machine_learning")) dir.create("C:/Desktop/Machine_learning") 
+setwd("C:/Desktop/Machine_learning")
 
 library(XLConnect)
 Data <- readWorksheet(loadWorkbook(file.choose()),sheet=1 ,header=TRUE)
 
 # ===============================================
+# Function for automatic data transformation, cleaning and train-test-validation data split
 
 data_sort <- function(Data){
   
@@ -49,10 +52,10 @@ data_sort <- function(Data){
   while (z<(length(y)+1))
   {
     i<-y[z]
-    variables[,z] <-Data[,i]
+    variables[,z] <- Data[,i]
     name<-colnames(Data)[i]
     
-    variable<-variables[,z]
+    variable <- variables[,z]
     df_start <- ncol(Data)
     
     for(level in unique(variable)){
@@ -73,8 +76,8 @@ data_sort <- function(Data){
   {
     
     e <-as.numeric(dummy_columns[[i]])
-    lower <-min(e)
-    upper <-max(e)
+    lower <- min(e)
+    upper <- max(e)
     
     dummmy_sum <- sapply(Data [,lower:upper], function(w) sum(w))  # selecting reference category
     m <- as.numeric(which.max(dummmy_sum))
@@ -105,15 +108,16 @@ data_sort <- function(Data){
 data_sort(Data)
 
 # ===============================================
+# Function for automatic production of descriptive statistics 
 
 descriptive_statistics = function(Data)
-  {
+{
   require(gridExtra)
   require(pastecs)
   require(FactoMineR)
   require(factoextra)
   
-  wd<- getwd()
+  wd <- getwd()
   
   Data <- data.frame(Data)
   des.table<-round(stat.desc(Data),2)
@@ -143,17 +147,17 @@ descriptive_statistics = function(Data)
   t<- dev.off()
   
   # ------------------------------
-  # correlation with CHURN
- 
+  # correlations
+  
   png(filename = paste0(wd, "/correlation.png"),
       width=6.7, height=5.2, units="in", res=150)
-  cor_coef<-cor(as.matrix(as.numeric(Data[, dependent])), 
+  cor_coef <- cor(as.matrix(as.numeric(Data[, dependent])), 
                 as.matrix(Data[,-c(1, dependent, dummy_start : length(Data))]),use="pairwise.complete.obs")
   par(mfrow=c(1,1))
   par(las=2) 
   par(mar=c(5,11,4,2))
-  barplot(cor_coef[,-7], horiz = T, cex.names = 0.8, main = "Correlation with CHURN")
-  t<- dev.off()
+  barplot(cor_coef[,-7], horiz = T, cex.names = 0.8, main = "Correlation with dependent")
+  t <- dev.off()
   
   # ------------------------------
   # boxplots
@@ -180,13 +184,13 @@ descriptive_statistics = function(Data)
   par(las=2) 
   par(mar=c(5,11,4,2))
   barplot(out_count, horiz = T, cex.names = 0.8, main = "Frequency of outliers")
-  t<- dev.off()
-
+  t <- dev.off()
+  
   # ------------------------------
   # principal component analysis
-
+  
   pca <- PCA(na.omit(Data[,-c(dependent, categorical,dummy_start : length(Data))]), graph = FALSE)
-
+  
   # The proportion of explained variance
   eigenvalues <- round(pca$eig, digits = 3)[,-3]
   tt <- ttheme_default(core=list(fg_params=list(hjust=0, x=0.1)),
@@ -220,11 +224,10 @@ descriptive_statistics = function(Data)
 descriptive_statistics(Data)
 
 # ===============================================
-
-setwd("C:/Users/Korisnik.Korisnik-PC/Desktop/Machine learning code/tmo")
+# Function for automatic selection of a subset of variables 
 
 subset_selection = function(Data)
-  {
+{
   
   options(warn=-1)
   
@@ -248,7 +251,7 @@ subset_selection = function(Data)
   
   mod <- glm(training_data[, dependent]~., data=training_data[, -c(1, dependent, categorical, reference_category)], family=binomial())
   
-  coef <-data.frame(coef(mod))
+  coef <- data.frame(coef(mod))
   # ------------------------------
   # logistic regression - error
   
@@ -262,7 +265,7 @@ subset_selection = function(Data)
   kappa<-kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(training_data[, dependent],pred))
   class_error <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
-
+  
   ###
   
   probs <- predict(mod, testing_data, type="response")
@@ -286,7 +289,7 @@ subset_selection = function(Data)
   # ridge regression
   
   grid=10^seq (10,-2, length=100)
-
+  
   cv.out =cv.glmnet(as.matrix(training_data[, -c(1, dependent, categorical, reference_category)]), as.matrix(training_data[, dependent]), 
                     alpha=0, family ="binomial",lambda=grid, standardize=F)
   
@@ -307,17 +310,17 @@ subset_selection = function(Data)
   name <- c("ridge")
   pred=predict(cv.out ,s=best_lambda ,newx=as.matrix(training_data[, -c(1, dependent, categorical, reference_category)]),type="class")
   
-  tmp <-data.frame(training_data[, dependent],pred)
-  kappa<-kappa2(tmp[1:2])[[5]]
+  tmp <- data.frame(training_data[, dependent],pred)
+  kappa <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(training_data[, dependent],pred))
   class_error <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
-
+  
   ###
   
   pred=predict(cv.out ,s=best_lambda ,newx=as.matrix(testing_data[, -c(1, dependent, categorical, reference_category)]),type="class")
   
   tmp <-data.frame(testing_data[, dependent],pred)
-  kappa_test<-kappa2(tmp[1:2])[[5]]
+  kappa_test <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(testing_data[, dependent],pred))
   class_error_test <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   error<-rbind(data.frame(name, kappa, class_error, kappa_test, class_error_test),error)
@@ -325,7 +328,7 @@ subset_selection = function(Data)
   # ------------------------------
   #  lasso
   
-  cv.out =cv.glmnet(as.matrix(training_data[, -c(1, dependent, categorical, reference_category)]), as.matrix(training_data[, dependent]), 
+  cv.out = cv.glmnet(as.matrix(training_data[, -c(1, dependent, categorical, reference_category)]), as.matrix(training_data[, dependent]), 
                     alpha=1, family ="binomial",lambda=grid,  standardize=F)
   
   png(filename = paste0(wd, "/lasso.png"))
@@ -355,8 +358,8 @@ subset_selection = function(Data)
   
   pred=predict(cv.out ,s=best_lambda ,newx=as.matrix(testing_data[, -c(1, dependent, categorical, reference_category)]),type="class")
   
-  tmp <-data.frame(testing_data[, dependent],pred)
-  kappa_test<-kappa2(tmp[1:2])[[5]]
+  tmp <- data.frame(testing_data[, dependent],pred)
+  kappa_test <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(testing_data[, dependent],pred))
   class_error_test <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   error<-rbind(data.frame(name, kappa, class_error, kappa_test, class_error_test),error)
@@ -364,17 +367,17 @@ subset_selection = function(Data)
   # ------------------------------
   # random forest
   
-  churn<-as.factor(training_data[, dependent])
+  depen <-as.factor(training_data[, dependent])
   
   independent <- colnames(training_data[, -c(1, dependent, categorical)])
   independent <- c(as.list(independent), sep="+")
   independent <- do.call(paste, independent)
   
-  RandomForest <- randomForest (as.formula(paste("churn", "~", independent)), 
-                                 data=training_data, 
-                                 importance=TRUE,
-                                 mtry=4,
-                                 ntree=1000)
+  RandomForest <- randomForest (as.formula(paste("depen", "~", independent)), 
+                                data=training_data, 
+                                importance=TRUE,
+                                mtry=4,
+                                ntree=1000)
   
   # ------------------------------
   # Random Forest - error
@@ -382,8 +385,8 @@ subset_selection = function(Data)
   name <- c("random forest")
   pred = predict (RandomForest, newdata=training_data[,-dependent]) 
   
-  tmp <-data.frame(training_data[, dependent],pred)
-  kappa<-kappa2(tmp[1:2])[[5]]
+  tmp <- data.frame(training_data[, dependent],pred)
+  kappa <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(training_data[, dependent],pred))
   class_error <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   
@@ -391,11 +394,11 @@ subset_selection = function(Data)
   
   pred = predict (RandomForest, newdata=testing_data[,-dependent]) 
   
-  tmp <-data.frame(testing_data[, dependent],pred)
-  kappa_test<-kappa2(tmp[1:2])[[5]]
+  tmp <- data.frame(testing_data[, dependent],pred)
+  kappa_test <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(testing_data[, dependent],pred))
   class_error_test <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
-  error<-rbind(data.frame(name, kappa, class_error, kappa_test, class_error_test),error)
+  error <- rbind(data.frame(name, kappa, class_error, kappa_test, class_error_test),error)
   
   # ------------------------------
   # error table
@@ -412,11 +415,11 @@ subset_selection = function(Data)
   # variable subset selection for ridge and lasso
   ridge <- subset(coef[-1,], subset=abs(round(ridge.coef, digits=2)) !=0) 
   ridge <- data.frame(rownames(ridge))
-  rownames(ridge) <-ridge$rownames.ridge.
+  rownames(ridge) <- ridge$rownames.ridge.
   
   lasso <- subset(coef[-1,], subset=abs(round(lasso.coef, digits=3)) !=0) 
   lasso <- data.frame(rownames(lasso))
-  rownames(lasso) <-lasso$rownames.lasso.
+  rownames(lasso) <- lasso$rownames.lasso.
   
   subset_select_reg <- merge(ridge, lasso, by="row.names",all=T)
   
@@ -433,19 +436,19 @@ subset_selection = function(Data)
   Accuracy <- data.frame(rownames(Accuracy))
   rownames(Accuracy) <-Accuracy$rownames.Accuracy.
   Gini <- data.frame(rownames(Gini))
-  rownames(Gini) <-Gini$rownames.Gini.
+  rownames(Gini) <- Gini$rownames.Gini.
   
   subset_select_RF <- merge(Accuracy, Gini, by="row.names",all=T)
   
-  subset_select<-merge(subset_select_reg, subset_select_RF, 
+  subset_select <- merge(subset_select_reg, subset_select_RF, 
                        by="Row.names", all=T)
   
-
+  
   # variable subset selection for logistic regression
   subset_select<-merge(subset_select, subset_select_log, by="Row.names", all=T)
   subset_select<-subset_select[,-1]
   colnames(subset_select) <- c("ridge", "lasso","random forest-accuracy",
-                                "random forest-gini", "logistic")
+                               "random forest-gini", "logistic")
   subset_select <<- subset_select
   
   # ------------------------------
@@ -475,10 +478,10 @@ subset_selection = function(Data)
   t <-dev.off()
   
   message('
-Instructions:
+          Instructions:
           
-Please review selected variables and specify the new formula (variable subset) in form of: 
-variable_subset <- "DEPENDENT ~ INDEPENDENT_1 + INDEPENDENT_2 + INDEPENDENT_3 + ... + INDEPENDENT_p"
+          Please review selected variables and specify the new formula (variable subset) in form of: 
+          variable_subset <- "DEPENDENT ~ INDEPENDENT_1 + INDEPENDENT_2 + INDEPENDENT_3 + ... + INDEPENDENT_p"
           ')
   
 }
@@ -486,18 +489,21 @@ variable_subset <- "DEPENDENT ~ INDEPENDENT_1 + INDEPENDENT_2 + INDEPENDENT_3 + 
 subset_selection(Data)
 
 
+# ===============================================
+# Function for automated selection of the best model
+
 # define the subset
 
-variable_subset <- "CHURN ~ BNUM_IN + BNUM_OUT + CALL_OUT_CNT + LNE_DAYS_OUT + REV_OUT"
+variable_subset <- "DEPENDENT ~ INDEPENDENT_1 + INDEPENDENT_2 + INDEPENDENT_3 + INDEPENDENT_4"
 
 subset_analysis = function(training_data,testing_data)
-  {
+{
   
   require(caret)
   require(plyr)
   require(irr)
   require(gridExtra)
-
+  
   training_data[, dependent] <- make.names(factor(training_data[, dependent]))
   
   ### knn
@@ -530,14 +536,14 @@ subset_analysis = function(training_data,testing_data)
   pred <- mapvalues(pred, from = c("X0", "X1"), to = c("0", "1"))
   training_data_CHURN <- as.numeric(mapvalues(training_data[, dependent], from = c("X0", "X1"), to = c("0", "1")))
   name <- c("C5.0/rule")  
-  tmp <-data.frame(training_data_CHURN,pred)
+  tmp <- data.frame(training_data_CHURN,pred)
   kappa<-kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(training_data[, dependent],pred))
   class_error <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   
   pred <- predict(mod, testing_data)
   pred <- mapvalues(pred, from = c("X0", "X1"), to = c("0", "1"))
-  tmp <-data.frame(testing_data[, dependent],pred)
+  tmp <- data.frame(testing_data[, dependent],pred)
   kappa_test<-kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(testing_data[, dependent],pred))
   class_error_test <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
@@ -559,7 +565,7 @@ subset_analysis = function(training_data,testing_data)
   pred <- predict(mod, testing_data)
   pred <- mapvalues(pred, from = c("X0", "X1"), to = c("0", "1"))
   tmp <-data.frame(testing_data[, dependent],pred)
-  kappa_test<-kappa2(tmp[1:2])[[5]]
+  kappa_test <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(testing_data[, dependent],pred))
   class_error_test <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   error_subset <-rbind(data.frame(name, kappa, class_error,  kappa_test, class_error_test),error_subset)
@@ -572,15 +578,15 @@ subset_analysis = function(training_data,testing_data)
   pred <- mapvalues(pred, from = c("X0", "X1"), to = c("0", "1"))
   training_data_CHURN <- as.numeric(mapvalues(training_data[, dependent], from = c("X0", "X1"), to = c("0", "1")))
   name <- c("svm radial")
-  tmp <-data.frame(training_data_CHURN,pred)
-  kappa<-kappa2(tmp[1:2])[[5]]
+  tmp <- data.frame(training_data_CHURN,pred)
+  kappa <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(training_data[, dependent],pred))
   class_error <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   
   pred <- predict(mod, testing_data)
   pred <- mapvalues(pred, from = c("X0", "X1"), to = c("0", "1"))
-  tmp <-data.frame(testing_data[, dependent],pred)
-  kappa_test<-kappa2(tmp[1:2])[[5]]
+  tmp <- data.frame(testing_data[, dependent],pred)
+  kappa_test <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(testing_data[, dependent],pred))
   class_error_test <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   error_subset <-rbind(data.frame(name, kappa, class_error,  kappa_test, class_error_test),error_subset)
@@ -595,8 +601,8 @@ subset_analysis = function(training_data,testing_data)
   pred=rep (0 ,nrow(training_data))
   pred[probs >.5]=1
   name <- c("logistic")
-  tmp <-data.frame(training_data[, dependent],pred)
-  kappa<-kappa2(tmp[1:2])[[5]]
+  tmp <- data.frame(training_data[, dependent],pred)
+  kappa <- kappa2(tmp[1:2])[[5]]
   conf_matrix <- data.frame(table(training_data[, dependent],pred))
   class_error <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
   
@@ -616,7 +622,7 @@ subset_analysis = function(training_data,testing_data)
   
   error_subset[2:5]<- round(error_subset[2:5], digits = 3)
   colnames(error_subset) <- c("method", "kappa - train","classification error - train", 
-                       "kappa - test","classification error - test")
+                              "kappa - test","classification error - test")
   error_subset <<- error_subset
   
   tt <- ttheme_default(core=list(fg_params=list(hjust=0, x=0.05)),
@@ -630,58 +636,3 @@ subset_analysis = function(training_data,testing_data)
 }
 
 subset_analysis(training_data,testing_data)
-
-# ------------------------------
-# ------------------------------
-#      final model
-# ------------------------------
-# ------------------------------
-
-mod <- glm(training_data[, dependent]~ BNUM_IN + BNUM_OUT + CALL_OUT_CNT + LNE_DAYS_OUT + REV_OUT
-           ,data=training_data,family=binomial())
-
-summary (mod)
-
-# ------------------------------
-
-perf = function(cut, mod, y)
-{
-  yhat = (mod$fit>cut)
-  w = which(y==1)
-  sensitivity = mean( yhat[w] == 1 ) 
-  specificity = mean( yhat[-w] == 0 ) 
-  c.rate = mean( y==yhat ) 
-  out = t(as.matrix(c(sensitivity, specificity, c.rate)))
-  colnames(out) = c("sensitivity", "specificity", "c.rate")
-  return(out)
-}
-
-s = seq(.01,.99,length=1000)
-OUT = matrix(0,1000,3)
-for(i in 1:1000) OUT[i,]=perf(s[i],mod,training_data[, dependent])
-plot(s,OUT[,1],xlab="Cutoff",ylab="Value",cex.lab=1.2,cex.axis=1.5,ylim=c(0,1),type="l",lwd=2,axes=FALSE,col=2)
-axis(1,seq(0,1,length=5),seq(0,1,length=5),cex.lab=1.5)
-axis(2,seq(0,1,length=5),seq(0,1,length=5),cex.lab=1.5)
-lines(s,OUT[,2],col="darkgreen",lwd=2)
-lines(s,OUT[,3],col=4,lwd=2)
-box()
-legend(0,.25,col=c(2,"darkgreen",4),lwd=c(2,2,2,2),c("Sensitivity","Specificity","Classification Rate"))
-
-
-difference<-abs(OUT[,1]-OUT[,2])+abs(OUT[,2]-OUT[,3])+abs(OUT[,3]-OUT[,1])
-
-cutoff<-which.min(difference)/1000
-
-# ------------------------------
-# logistic regression subset - error
-probs <- predict(mod, testing_data[, -c(1, dependent, categorical, reference_category)], type="response")
-pred=rep (0 ,nrow(testing_data))
-pred[probs > cutoff]=1    # cutoff was 42
-table(testing_data[, dependent],pred)
-
-name <- c("logistic subset")
-tmp <-data.frame(testing_data[, dependent],pred)
-kappa<-kappa2(tmp[1:2])[[5]]
-conf_matrix <- data.frame(table(testing_data[, dependent],pred))
-class_error <- 1-((conf_matrix$Freq[1]+conf_matrix$Freq[4])/sum(conf_matrix$Freq))
-data.frame(name, kappa, class_error)
