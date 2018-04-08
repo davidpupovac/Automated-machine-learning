@@ -1,4 +1,4 @@
-# Automated machine learning -- a machine for analysis of dichotomous response variables 
+# Automated machine learning - a machine for analysis of dichotomous response variables 
 
 The following R code generates fully automated, interactive procedure for the analysis of dichotomous response variables. The procedure consists of four functions:
 
